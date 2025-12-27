@@ -1,38 +1,53 @@
-"use client"
-
-import { useState } from "react"
-import { Calendar } from "@/components/ui/calendar"
+import { getWorkoutsForDate } from "@/data/workouts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDateWithOrdinal } from "@/lib/date-utils"
+import { CalendarSelector } from "@/components/dashboard/calendar-selector"
 
-// Mock workout data for UI purposes only
-const mockWorkouts = [
-  {
-    id: 1,
-    name: "Morning Upper Body",
-    exercises: [
-      { name: "Bench Press", sets: 4, reps: 8, weight: "185 lbs" },
-      { name: "Shoulder Press", sets: 3, reps: 10, weight: "95 lbs" },
-      { name: "Pull-ups", sets: 3, reps: 12, weight: "Bodyweight" },
-    ],
-    duration: "45 min",
-    completedAt: "8:30 AM"
-  },
-  {
-    id: 2,
-    name: "Evening Leg Day",
-    exercises: [
-      { name: "Squats", sets: 5, reps: 5, weight: "225 lbs" },
-      { name: "Romanian Deadlifts", sets: 3, reps: 10, weight: "185 lbs" },
-      { name: "Leg Press", sets: 3, reps: 12, weight: "320 lbs" },
-    ],
-    duration: "60 min",
-    completedAt: "6:00 PM"
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: SearchParams
+}) {
+  const params = await searchParams
+
+  // Get date from URL params or default to today
+  const dateParam = params.date as string | undefined
+  let date: Date
+
+  if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+    // Parse YYYY-MM-DD format in local timezone
+    const [year, month, day] = dateParam.split("-").map(Number)
+    date = new Date(year, month - 1, day)
+  } else {
+    date = new Date()
   }
-]
 
-export default function DashboardPage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  // Validate date
+  if (isNaN(date.getTime())) {
+    date = new Date()
+  }
+
+  // Fetch workouts for the selected date
+  const workouts = await getWorkoutsForDate(date)
+
+  // Calculate workout statistics
+  const calculateDuration = (startedAt: Date, completedAt: Date | null) => {
+    if (!completedAt) return null
+
+    const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime()
+    const minutes = Math.floor(durationMs / 60000)
+    return `${minutes} min`
+  }
+
+  const formatTime = (timestamp: Date) => {
+    return new Date(timestamp).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  }
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -46,22 +61,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar Section */}
         <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Select Date</CardTitle>
-              <CardDescription>
-                {formatDateWithOrdinal(selectedDate)}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-center">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                className="rounded-md border"
-              />
-            </CardContent>
-          </Card>
+          <CalendarSelector />
         </div>
 
         {/* Workouts List Section */}
@@ -70,11 +70,11 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle>Workouts</CardTitle>
               <CardDescription>
-                Workouts logged for {formatDateWithOrdinal(selectedDate)}
+                Workouts logged for {formatDateWithOrdinal(date)}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {mockWorkouts.length === 0 ? (
+              {workouts.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground">
                     No workouts logged for this date
@@ -82,40 +82,82 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {mockWorkouts.map((workout) => (
-                    <Card key={workout.id} className="border-2">
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-xl">{workout.name}</CardTitle>
-                            <CardDescription>
-                              {workout.duration} • Completed at {workout.completedAt}
-                            </CardDescription>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {workout.exercises.map((exercise, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                            >
-                              <div className="flex-1">
-                                <p className="font-medium">{exercise.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {exercise.sets} sets × {exercise.reps} reps
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-semibold">{exercise.weight}</p>
-                              </div>
+                  {workouts.map((workout) => {
+                    const duration = calculateDuration(workout.startedAt, workout.completedAt)
+                    const completedTime = workout.completedAt
+                      ? formatTime(workout.completedAt)
+                      : "In progress"
+
+                    return (
+                      <Card key={workout.id} className="border-2">
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-xl">
+                                {workout.name || "Untitled Workout"}
+                              </CardTitle>
+                              <CardDescription>
+                                {duration && `${duration} • `}
+                                {workout.completedAt
+                                  ? `Completed at ${completedTime}`
+                                  : "In progress"}
+                              </CardDescription>
                             </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          {workout.exercises.length === 0 ? (
+                            <p className="text-muted-foreground text-sm">
+                              No exercises logged
+                            </p>
+                          ) : (
+                            <div className="space-y-3">
+                              {workout.exercises.map((exercise, index) => {
+                                const totalSets = exercise.sets.length
+                                const avgReps =
+                                  totalSets > 0
+                                    ? Math.round(
+                                        exercise.sets.reduce(
+                                          (sum, set) => sum + (set.reps || 0),
+                                          0
+                                        ) / totalSets
+                                      )
+                                    : 0
+                                const maxWeight =
+                                  exercise.sets.length > 0
+                                    ? Math.max(
+                                        ...exercise.sets
+                                          .map((set) => parseFloat(set.weight || "0"))
+                                          .filter((w) => !isNaN(w))
+                                      )
+                                    : 0
+
+                                return (
+                                  <div
+                                    key={index}
+                                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                                  >
+                                    <div className="flex-1">
+                                      <p className="font-medium">{exercise.name}</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        {totalSets} {totalSets === 1 ? "set" : "sets"}
+                                        {avgReps > 0 && ` × ${avgReps} reps`}
+                                      </p>
+                                    </div>
+                                    {maxWeight > 0 && (
+                                      <div className="text-right">
+                                        <p className="font-semibold">{maxWeight} lbs</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
                 </div>
               )}
             </CardContent>

@@ -1,0 +1,136 @@
+import { db } from "@/db";
+import { workouts, workoutExercises, exercises, sets } from "@/db/schema";
+import { auth } from "@clerk/nextjs/server";
+import { eq, and, gte, lt, desc } from "drizzle-orm";
+
+export type WorkoutSet = {
+  setNumber: number;
+  weight: string | null;
+  reps: number | null;
+  durationSeconds: number | null;
+};
+
+export type WorkoutExercise = {
+  name: string;
+  sets: WorkoutSet[];
+};
+
+export type WorkoutWithExercises = {
+  id: number;
+  name: string | null;
+  startedAt: Date;
+  completedAt: Date | null;
+  exercises: WorkoutExercise[];
+};
+
+export async function getWorkoutsForDate(date: Date): Promise<WorkoutWithExercises[]> {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  // Set the start and end of the selected date
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  // Fetch workouts for the selected date with exercises and sets
+  const workoutsData = await db
+    .select({
+      workout: workouts,
+      workoutExercise: workoutExercises,
+      exercise: exercises,
+      set: sets,
+    })
+    .from(workouts)
+    .leftJoin(
+      workoutExercises,
+      eq(workoutExercises.workoutId, workouts.id)
+    )
+    .leftJoin(
+      exercises,
+      eq(exercises.id, workoutExercises.exerciseId)
+    )
+    .leftJoin(
+      sets,
+      eq(sets.workoutExerciseId, workoutExercises.id)
+    )
+    .where(
+      and(
+        eq(workouts.userId, userId),
+        gte(workouts.startedAt, startOfDay),
+        lt(workouts.startedAt, endOfDay)
+      )
+    )
+    .orderBy(desc(workouts.startedAt));
+
+  // Transform the flat result into a nested structure
+  const workoutsMap = new Map();
+
+  for (const row of workoutsData) {
+    if (!row.workout) continue;
+
+    const workoutId = row.workout.id;
+
+    if (!workoutsMap.has(workoutId)) {
+      workoutsMap.set(workoutId, {
+        id: row.workout.id,
+        name: row.workout.name,
+        startedAt: row.workout.startedAt,
+        completedAt: row.workout.completedAt,
+        exercises: new Map(),
+      });
+    }
+
+    const workout = workoutsMap.get(workoutId);
+
+    if (row.exercise && row.workoutExercise) {
+      const exerciseId = row.exercise.id;
+
+      if (!workout.exercises.has(exerciseId)) {
+        workout.exercises.set(exerciseId, {
+          name: row.exercise.name,
+          order: row.workoutExercise.order,
+          sets: [],
+        });
+      }
+
+      if (row.set) {
+        workout.exercises.get(exerciseId).sets.push({
+          setNumber: row.set.setNumber,
+          weight: row.set.weight,
+          reps: row.set.reps,
+          durationSeconds: row.set.durationSeconds,
+        });
+      }
+    }
+  }
+
+  // Convert maps to arrays and sort
+  return Array.from(workoutsMap.values()).map((workout) => ({
+    ...workout,
+    exercises: Array.from(workout.exercises.values())
+      .sort((a, b) => a.order - b.order)
+      .map(({ order, ...exercise }) => ({
+        ...exercise,
+        sets: exercise.sets.sort((a, b) => a.setNumber - b.setNumber),
+      })),
+  }));
+}
+
+export async function getAllWorkouts() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  return await db
+    .select()
+    .from(workouts)
+    .where(eq(workouts.userId, userId))
+    .orderBy(desc(workouts.startedAt));
+}
