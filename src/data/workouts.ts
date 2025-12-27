@@ -68,7 +68,19 @@ export async function getWorkoutsForDate(date: Date): Promise<WorkoutWithExercis
     .orderBy(desc(workouts.startedAt));
 
   // Transform the flat result into a nested structure
-  const workoutsMap = new Map();
+  type WorkoutWithExerciseMap = {
+    id: number;
+    name: string | null;
+    startedAt: Date;
+    completedAt: Date | null;
+    exercises: Map<number, {
+      name: string;
+      order: number;
+      sets: WorkoutSet[];
+    }>;
+  };
+
+  const workoutsMap = new Map<number, WorkoutWithExerciseMap>();
 
   for (const row of workoutsData) {
     if (!row.workout) continue;
@@ -86,6 +98,7 @@ export async function getWorkoutsForDate(date: Date): Promise<WorkoutWithExercis
     }
 
     const workout = workoutsMap.get(workoutId);
+    if (!workout) continue;
 
     if (row.exercise && row.workoutExercise) {
       const exerciseId = row.exercise.id;
@@ -99,12 +112,15 @@ export async function getWorkoutsForDate(date: Date): Promise<WorkoutWithExercis
       }
 
       if (row.set) {
-        workout.exercises.get(exerciseId).sets.push({
-          setNumber: row.set.setNumber,
-          weight: row.set.weight,
-          reps: row.set.reps,
-          durationSeconds: row.set.durationSeconds,
-        });
+        const exercise = workout.exercises.get(exerciseId);
+        if (exercise) {
+          exercise.sets.push({
+            setNumber: row.set.setNumber,
+            weight: row.set.weight,
+            reps: row.set.reps,
+            durationSeconds: row.set.durationSeconds,
+          });
+        }
       }
     }
   }
@@ -114,6 +130,7 @@ export async function getWorkoutsForDate(date: Date): Promise<WorkoutWithExercis
     ...workout,
     exercises: Array.from(workout.exercises.values())
       .sort((a, b) => a.order - b.order)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       .map(({ order, ...exercise }) => ({
         ...exercise,
         sets: exercise.sets.sort((a, b) => a.setNumber - b.setNumber),
