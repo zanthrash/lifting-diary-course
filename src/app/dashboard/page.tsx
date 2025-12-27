@@ -1,7 +1,9 @@
 import { getWorkoutsForDate } from "@/data/workouts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { formatDateWithOrdinal } from "@/lib/date-utils"
 import { CalendarSelector } from "@/components/dashboard/calendar-selector"
+import Link from "next/link"
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
 
@@ -68,10 +70,17 @@ export default async function DashboardPage({
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Workouts</CardTitle>
-              <CardDescription>
-                Workouts logged for {formatDateWithOrdinal(date)}
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Workouts</CardTitle>
+                  <CardDescription>
+                    Workouts logged for {formatDateWithOrdinal(date)}
+                  </CardDescription>
+                </div>
+                <Button asChild>
+                  <Link href="/dashboard/workout/new">New Workout</Link>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {workouts.length === 0 ? (

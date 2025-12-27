@@ -151,3 +151,25 @@ export async function getAllWorkouts() {
     .where(eq(workouts.userId, userId))
     .orderBy(desc(workouts.startedAt));
 }
+
+export async function createWorkout(data: {
+  name?: string;
+  startedAt?: Date;
+}) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  const [workout] = await db
+    .insert(workouts)
+    .values({
+      name: data.name || null,
+      startedAt: data.startedAt || new Date(),
+      userId,
+    })
+    .returning();
+
+  return workout;
+}

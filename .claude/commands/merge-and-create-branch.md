@@ -1,0 +1,1 @@
+commit any changes in the current branch and provide a standard commit message. then merge the current branch into the main branch and resolve any conflicts that arise. then, create a new branch from the updated main branch called $ARGUMENTS
