@@ -60,6 +60,7 @@ src/
 - `page.tsx` files define routes
 - Server Components by default (use `"use client"` for client components)
 - Metadata is exported from layouts and pages, not defined in a separate head file
+- **CRITICAL**: In Next.js 15+, `params` and `searchParams` are promises and MUST be awaited (see `/docs/server-components.md`)
 
 ## Clerk Authentication Integration
 

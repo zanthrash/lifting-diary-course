@@ -152,6 +152,25 @@ export async function getAllWorkouts() {
     .orderBy(desc(workouts.startedAt));
 }
 
+export async function getWorkout(workoutId: number) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  const [workout] = await db
+    .select()
+    .from(workouts)
+    .where(and(
+      eq(workouts.id, workoutId),
+      eq(workouts.userId, userId)
+    ))
+    .limit(1);
+
+  return workout;
+}
+
 export async function createWorkout(data: {
   name?: string;
   startedAt?: Date;
@@ -172,4 +191,34 @@ export async function createWorkout(data: {
     .returning();
 
   return workout;
+}
+
+export async function updateWorkout(
+  workoutId: number,
+  data: {
+    name?: string | null;
+    startedAt?: Date;
+    completedAt?: Date | null;
+  }
+) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  const [updated] = await db
+    .update(workouts)
+    .set(data)
+    .where(and(
+      eq(workouts.id, workoutId),
+      eq(workouts.userId, userId)
+    ))
+    .returning();
+
+  if (!updated) {
+    throw new Error("Workout not found");
+  }
+
+  return updated;
 }
