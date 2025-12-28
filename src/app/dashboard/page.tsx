@@ -98,73 +98,79 @@ export default async function DashboardPage({
                       : "In progress"
 
                     return (
-                      <Card key={workout.id} className="border-2">
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <CardTitle className="text-xl">
-                                {workout.name || "Untitled Workout"}
-                              </CardTitle>
-                              <CardDescription>
-                                {duration && `${duration} • `}
-                                {workout.completedAt
-                                  ? `Completed at ${completedTime}`
-                                  : "In progress"}
-                              </CardDescription>
+                      <Link
+                        key={workout.id}
+                        href={`/dashboard/workout/${workout.id}`}
+                        className="block transition-transform hover:scale-[1.02]"
+                      >
+                        <Card className="border-2 cursor-pointer hover:border-primary/50">
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <CardTitle className="text-xl">
+                                  {workout.name || "Untitled Workout"}
+                                </CardTitle>
+                                <CardDescription>
+                                  {duration && `${duration} • `}
+                                  {workout.completedAt
+                                    ? `Completed at ${completedTime}`
+                                    : "In progress"}
+                                </CardDescription>
+                              </div>
                             </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          {workout.exercises.length === 0 ? (
-                            <p className="text-muted-foreground text-sm">
-                              No exercises logged
-                            </p>
-                          ) : (
-                            <div className="space-y-3">
-                              {workout.exercises.map((exercise, index) => {
-                                const totalSets = exercise.sets.length
-                                const avgReps =
-                                  totalSets > 0
-                                    ? Math.round(
-                                        exercise.sets.reduce(
-                                          (sum, set) => sum + (set.reps || 0),
-                                          0
-                                        ) / totalSets
-                                      )
-                                    : 0
-                                const maxWeight =
-                                  exercise.sets.length > 0
-                                    ? Math.max(
-                                        ...exercise.sets
-                                          .map((set) => parseFloat(set.weight || "0"))
-                                          .filter((w) => !isNaN(w))
-                                      )
-                                    : 0
+                          </CardHeader>
+                          <CardContent>
+                            {workout.exercises.length === 0 ? (
+                              <p className="text-muted-foreground text-sm">
+                                No exercises logged
+                              </p>
+                            ) : (
+                              <div className="space-y-3">
+                                {workout.exercises.map((exercise, index) => {
+                                  const totalSets = exercise.sets.length
+                                  const avgReps =
+                                    totalSets > 0
+                                      ? Math.round(
+                                          exercise.sets.reduce(
+                                            (sum, set) => sum + (set.reps || 0),
+                                            0
+                                          ) / totalSets
+                                        )
+                                      : 0
+                                  const maxWeight =
+                                    exercise.sets.length > 0
+                                      ? Math.max(
+                                          ...exercise.sets
+                                            .map((set) => parseFloat(set.weight || "0"))
+                                            .filter((w) => !isNaN(w))
+                                        )
+                                      : 0
 
-                                return (
-                                  <div
-                                    key={index}
-                                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                                  >
-                                    <div className="flex-1">
-                                      <p className="font-medium">{exercise.name}</p>
-                                      <p className="text-sm text-muted-foreground">
-                                        {totalSets} {totalSets === 1 ? "set" : "sets"}
-                                        {avgReps > 0 && ` × ${avgReps} reps`}
-                                      </p>
-                                    </div>
-                                    {maxWeight > 0 && (
-                                      <div className="text-right">
-                                        <p className="font-semibold">{maxWeight} lbs</p>
+                                  return (
+                                    <div
+                                      key={index}
+                                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                                    >
+                                      <div className="flex-1">
+                                        <p className="font-medium">{exercise.name}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                          {totalSets} {totalSets === 1 ? "set" : "sets"}
+                                          {avgReps > 0 && ` × ${avgReps} reps`}
+                                        </p>
                                       </div>
-                                    )}
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
+                                      {maxWeight > 0 && (
+                                        <div className="text-right">
+                                          <p className="font-semibold">{maxWeight} lbs</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Link>
                     )
                   })}
                 </div>
